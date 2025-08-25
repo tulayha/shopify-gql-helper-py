@@ -1,0 +1,20 @@
+{
+  "data": {
+    "products": {
+      "pageInfo": {"hasNextPage": true, "endCursor": "cursor1"},
+      "nodes": [
+        {"id": "gid://shopify/Product/1", "title": "A"},
+        {"id": "gid://shopify/Product/2", "title": "B"}
+      ]
+    }
+  },
+  "extensions": {
+    "cost": {
+      "throttleStatus": {
+        "currentlyAvailable": 900,
+        "restoreRate": 50,
+        "maximumAvailable": 1000
+      }
+    }
+  }
+}
