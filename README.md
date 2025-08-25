@@ -1,5 +1,10 @@
 # Shopify GraphQL Helper
 
+[![PyPI](https://img.shields.io/pypi/v/shopify-gql-helper)](https://pypi.org/project/shopify-gql-helper/)
+[![Python Version](https://img.shields.io/pypi/pyversions/shopify-gql-helper)](https://pypi.org/project/shopify-gql-helper/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://github.com/tulayha/shopify-gql-helper-py/actions/workflows/tests.yml/badge.svg)](https://github.com/tulayha/shopify-gql-helper-py/actions)
+
 Tiny, production‑minded helpers for the Shopify Admin GraphQL API.
 Shopify's official Python SDK exposes `GraphQL().execute` only; this
 package adds sessions, automatic cursor pagination, and per‑shop
