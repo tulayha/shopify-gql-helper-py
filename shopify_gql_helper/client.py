@@ -15,7 +15,26 @@ def execute(
     timeout: float = 30,
     retries: int = 2,
 ) -> Dict[str, Any]:
-    """Execute a GraphQL query using the provided session."""
+    """Execute a GraphQL query against the Shopify Admin API.
+    
+    Args:
+        session: An authenticated ShopifySession instance
+        query: The GraphQL query string to execute
+        variables: Optional dictionary of variables for the GraphQL query
+        timeout: Request timeout in seconds (default: 30)
+        retries: Number of retry attempts for failed requests (default: 2)
+        
+    Returns:
+        dict: The parsed JSON response from the Shopify API
+        
+    Raises:
+        ShopifyGQLError: If there's an error executing the query or parsing the response
+        
+    Example:
+        >>> session = ShopifySession(shop_url, access_token)
+        >>> query = "{ shop { name } }"
+        >>> result = execute(session, query)
+    """
 
     payload = {"query": query, "variables": variables or {}}
     headers = {

@@ -14,11 +14,43 @@ def cursor_pages(
     connection_path: List[str],
     page_size: int = 250,
 ) -> Iterable[Dict[str, Any]]:
-    """Yield items from a cursor-based connection.
-
-    ``connection_path`` is a list of keys from the root of the response to
-    the connection object, e.g. ``["data", "products"]``.
     """
+    Yield items from a cursor-based GraphQL connection, requesting additional
+    pages until `pageInfo.hasNextPage` is false.
+
+    The supplied `query` must accept `$first:Int!` and `$after:String` variables
+    for pagination. `connection_path` is a list of keys from the root of the
+    response to the desired connection object (e.g. `["data", "products"]`).
+
+    Args:
+        session: Authenticated `ShopifySession`.
+        query: GraphQL document containing a connection field.
+        variables: Initial query variables (updated with pagination params).
+        connection_path: Keys navigating from the root response to the connection.
+            For example, if your query returns data like {"data": {"products": {"edges": [...]}}},
+            the connection_path would be ["data", "products"]
+        page_size: Items per page (default 250, Shopify max).
+
+    Yields:
+        dict: Each node from the connection, one at a time.
+
+    Raises:
+        ValueError: If `connection_path` is invalid or connection lacks
+            `nodes`/`edges`.
+
+    Example:
+        >>> query = '''
+        ...   query($first:Int!, $after:String) {
+        ...     products(first:$first, after:$after) {
+        ...       pageInfo { hasNextPage endCursor }
+        ...       nodes { id title }
+        ...     }
+        ...   }
+        ... '''
+        >>> for product in cursor_pages(session, query, {}, ["data", "products"]):
+        ...     print(product["title"])
+    """
+
 
     vars_copy: Dict[str, Any] = dict(variables or {})
     cursor: str | None = None
