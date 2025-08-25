@@ -8,6 +8,7 @@ on:
       - 'LICENSE'
       - '.gitignore'
       - 'CONTRIBUTING.md'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
     branches: [ "main" ]
     paths-ignore:
@@ -15,6 +16,7 @@ on:
       - 'LICENSE'
       - '.gitignore'
       - 'CONTRIBUTING.md'
+      - '.github/ISSUE_TEMPLATE/**'
 
 jobs:
   test:
