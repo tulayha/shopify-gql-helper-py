@@ -1,7 +1,7 @@
 """Pagination helpers."""
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List
+from typing import Any, Iterable, Mapping
 
 from .client import execute
 from .session import ShopifySession
@@ -10,10 +10,10 @@ from .session import ShopifySession
 def cursor_pages(
     session: ShopifySession,
     query: str,
-    variables: Dict[str, Any],
-    connection_path: List[str],
+    connection_path: list[str],
+    variables: Mapping[str, Any] | None = None,
     page_size: int = 250,
-) -> Iterable[Dict[str, Any]]:
+) -> Iterable[dict[str, Any]]:
     """
     Yield items from a cursor-based GraphQL connection, requesting additional
     pages until `pageInfo.hasNextPage` is false.
@@ -25,8 +25,8 @@ def cursor_pages(
     Args:
         session: Authenticated `ShopifySession`.
         query: GraphQL document containing a connection field.
-        variables: Initial query variables (updated with pagination params).
         connection_path: Keys navigating from the root response to the connection.
+        variables: Initial query variables (updated with pagination params). May be None.
             For example, if your query returns data like {"data": {"products": {"edges": [...]}}},
             the connection_path would be ["data", "products"]
         page_size: Items per page (default 250, Shopify max).
@@ -47,12 +47,12 @@ def cursor_pages(
         ...     }
         ...   }
         ... '''
-        >>> for product in cursor_pages(session, query, {}, ["data", "products"]):
+        >>> for product in cursor_pages(session, query, ["data", "products"]):
         ...     print(product["title"])
     """
 
 
-    vars_copy: Dict[str, Any] = dict(variables or {})
+    vars_copy: dict[str, Any] = dict(variables or {})
     cursor: str | None = None
     while True:
         vars_copy["first"] = page_size
