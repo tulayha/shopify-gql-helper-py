@@ -1,9 +1,13 @@
 # Shopify GraphQL Helper
 
 [![PyPI](https://img.shields.io/pypi/v/shopify-gql-helper)](https://pypi.org/project/shopify-gql-helper/)
-[![Python Version](https://img.shields.io/pypi/pyversions/shopify-gql-helper)](https://pypi.org/project/shopify-gql-helper/)
+[![TestPyPI](https://img.shields.io/badge/TestPyPI-shopify--gql--helper-blue)](https://test.pypi.org/project/shopify-gql-helper/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/shopify-gql-helper)](https://pypi.org/project/shopify-gql-helper/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://github.com/tulayha/shopify-gql-helper-py/actions/workflows/tests.yml/badge.svg)](https://github.com/tulayha/shopify-gql-helper-py/actions)
+[![CI](https://github.com/tulayha/shopify-gql-helper-py/actions/workflows/python-ci.yml/badge.svg?branch=main)](https://github.com/tulayha/shopify-gql-helper-py/actions/workflows/python-ci.yml)
+[![Publish](https://github.com/tulayha/shopify-gql-helper-py/actions/workflows/upload-python-package.yml/badge.svg)](https://github.com/tulayha/shopify-gql-helper-py/actions/workflows/upload-python-package.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/tulayha/shopify-gql-helper-py?display_name=tag)](https://github.com/tulayha/shopify-gql-helper-py/releases)
+
 
 Tiny, production‑minded helpers for the Shopify Admin GraphQL API.
 Shopify's official Python SDK exposes `GraphQL().execute` only; this
