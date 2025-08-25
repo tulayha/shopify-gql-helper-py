@@ -1,0 +1,90 @@
+name: Upload Python Package
+
+on:
+  release:
+    types: [published]   # runs when you click "Publish release" in GitHub
+
+permissions:
+  contents: read
+  id-token: write        # needed for OIDC (Trusted Publisher)
+
+jobs:
+  build:
+    name: Build dists
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build               # creates dist/*.whl and *.tar.gz
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dists
+          path: dist/
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    runs-on: ubuntu-latest
+    needs: [build]
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/shopify-gql-helper/
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-dists
+          path: dist/
+      - name: Publish (Trusted Publisher to TestPyPI)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist/
+
+  smoke-test:
+    name: Install from TestPyPI and import
+    runs-on: ubuntu-latest
+    needs: [publish-testpypi]
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install package from TestPyPI
+        run: |
+          python -m pip install --upgrade pip
+          # Install your package from TestPyPI,
+          # allow dependencies (like requests) to come from real PyPI:
+          pip install --index-url https://test.pypi.org/simple/ \
+                      --extra-index-url https://pypi.org/simple \
+                      shopify-gql-helper
+      - name: Import smoke test
+        run: |
+          python - <<'PY'
+          from shopify_gql_helper import ShopifySession, execute, cursor_pages
+          print("import ok")
+          PY
+
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [smoke-test]
+    # If the Release is marked "prerelease", skip publishing to real PyPI
+    if: ${{ !github.event.release.prerelease }}
+    environment:
+      name: pypi
+      url: https://pypi.org/project/shopify-gql-helper/
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-dists
+          path: dist/
+      - name: Publish (Trusted Publisher to PyPI)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
