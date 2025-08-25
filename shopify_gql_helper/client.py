@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Mapping
 
 from .errors import ShopifyGQLError
 from .session import ShopifySession
@@ -11,16 +11,16 @@ from .session import ShopifySession
 def execute(
     session: ShopifySession,
     query: str,
-    variables: Optional[Dict[str, Any]] = None,
+    variables: Mapping[str, Any] | None = None,
     timeout: float = 30,
     retries: int = 2,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Execute a GraphQL query against the Shopify Admin API.
     
     Args:
         session: An authenticated ShopifySession instance
         query: The GraphQL query string to execute
-        variables: Optional dictionary of variables for the GraphQL query
+        variables: Optional mapping of variables for the GraphQL query
         timeout: Request timeout in seconds (default: 30)
         retries: Number of retry attempts for failed requests (default: 2)
         

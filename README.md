@@ -49,12 +49,13 @@ session = ShopifySession("https://example.myshopify.com", "shpca_123")
 data = execute(session, query, {"first": 1})
 
 # Stream all products
-for product in cursor_pages(session, query, {}, ["data", "products"]):
+for product in cursor_pages(session, query, ["data", "products"]):
     print(product["id"], product["title"])
 ```
 
 ``connection_path`` lists the keys from the response root to the desired
 connection, so `["data", "products"]` points to `data.products` above.
+Additional GraphQL variables can be supplied via the optional ``variables`` argument.
 
 ## Throttling
 
@@ -105,8 +106,7 @@ from shopify_gql_helper.transport import Transport
 
 class CustomTransport(Transport):
     def post(self, url: str, headers: dict, json: dict, timeout: float):
-        # Your custom implementation
-        pass
+        raise NotImplementedError
 ```
 
 ## Development

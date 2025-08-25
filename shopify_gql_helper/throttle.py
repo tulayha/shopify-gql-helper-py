@@ -4,7 +4,7 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any
 
 
 @dataclass
@@ -49,10 +49,10 @@ class ThrottleController:
         with self.cond:
             now = time.monotonic()
             elapsed = now - self.last_update
-            self.available = min(
+            new_available = min(
                 self.max_available, self.available + elapsed * self.restore_rate
             )
-            self.available = int(self.available)
+            self.available = int(new_available)
             self.last_update = now
             if self.available < min_bucket:
                 if self.restore_rate <= 0:
@@ -65,13 +65,13 @@ class ThrottleController:
                 self.cond.wait(timeout=sleep_time)
                 now = time.monotonic()
                 elapsed = now - self.last_update
-                self.available = min(
+                new_available = min(
                     self.max_available, self.available + elapsed * self.restore_rate
                 )
-                self.available = int(self.available)
+                self.available = int(new_available)
                 self.last_update = now
 
-    def after_response(self, throttle_status: Optional[dict]) -> None:
+    def after_response(self, throttle_status: dict[str, Any] | None) -> None:
         """Update rate limiting information after a request completes.
         
         This should be called after receiving a response from the Shopify API to

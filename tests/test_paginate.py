@@ -45,8 +45,8 @@ def test_cursor_pages_streams_all_items():
         cursor_pages(
             session,
             query,
-            variables={},
             connection_path=["data", "products"],
+            variables={},
             page_size=2,
         )
     )
@@ -68,8 +68,8 @@ def test_cursor_pages_bad_path():
             cursor_pages(
                 session,
                 "query",
-                variables={},
                 connection_path=["data", "missing"],
+                variables={},
                 page_size=2,
             )
         )
