@@ -117,7 +117,6 @@ pytest --cov=shopify_gql_helper
 
 - [ ] Bulk operations
 - [ ] Nested pagination (e.g., products → variants)
-- [ ] ShopifyQL Analytics table pagination
 
 ## Contributing
 
