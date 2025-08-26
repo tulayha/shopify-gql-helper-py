@@ -73,7 +73,8 @@ def execute(
             .get("cost", {})
             .get("throttleStatus")
         )
-        session.throttle.after_response(throttle_status)
+        cost = data.get("extensions", {}).get("cost", {}).get("actualQueryCost")
+        session.throttle.after_response(throttle_status, cost)
         return data
     # If loop exits without return, raise generic error
     raise ShopifyGQLError("Max retries exceeded")

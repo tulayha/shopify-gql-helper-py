@@ -12,7 +12,7 @@ def cursor_pages(
     query: str,
     connection_path: list[str],
     variables: Mapping[str, Any] | None = None,
-    page_size: int = 250,
+    page_size: int = 50,
 ) -> Iterable[dict[str, Any]]:
     """
     Yield items from a cursor-based GraphQL connection, requesting additional
@@ -54,8 +54,9 @@ def cursor_pages(
 
     vars_copy: dict[str, Any] = dict(variables or {})
     cursor: str | None = None
+    first = vars_copy.get("first")
+    vars_copy["first"] = first if (isinstance(first, int) and first > 0) else page_size
     while True:
-        vars_copy["first"] = page_size
         vars_copy["after"] = cursor
         data = execute(session, query, vars_copy)
         conn: Any = data
