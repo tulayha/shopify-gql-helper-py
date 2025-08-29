@@ -15,7 +15,7 @@ class ThrottleController:
     
     Attributes:
         available: Current number of available request points in the bucket
-        restore_rate: Number of points restored per second (leak rate)
+        restore_rate: Number of points restored per second (leak rate, must be > 0)
         max_available: Maximum number of points the bucket can hold
         last_update: Timestamp of the last bucket update
     """
@@ -36,6 +36,11 @@ class ThrottleController:
 
     def __post_init__(self) -> None:
         self.cond = threading.Condition(self.lock)
+
+    def __setattr__(self, name: str, value: Any) -> None:  # type: ignore[override]
+        if name == "restore_rate" and float(value) <= 0:
+            raise ValueError("restore_rate must be positive")
+        super().__setattr__(name, value)
 
     def _refill(self) -> None:
         now = time.monotonic()
@@ -62,6 +67,9 @@ class ThrottleController:
         if min_sleep < 0:
             min_sleep = 1.0
 
+        if self.restore_rate <= 0:
+            raise ValueError("restore_rate must be positive")
+
         with self.cond:
             while True:
                 self._refill()
@@ -73,10 +81,7 @@ class ThrottleController:
                 if self.available >= target:
                     return
 
-                if self.restore_rate <= 0:
-                    sleep_time = max(min_sleep, 0.1)
-                else:
-                    sleep_time = max(min_sleep, (target - self.available) / self.restore_rate)
+                sleep_time = max(min_sleep, (target - self.available) / self.restore_rate)
 
                 # Wait releases the lock and reacquires it after timeout/notify
                 self.cond.wait(timeout=sleep_time)
