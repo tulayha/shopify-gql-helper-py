@@ -93,9 +93,17 @@ session = ShopifySession(
 
 Shopify uses a [leaky bucket](https://shopify.dev/docs/api/usage/rate-limits) policy.
 `ShopifySession` coordinates requests per shop through a shared
-`ThrottleController`. 
+`ThrottleController`.
 
 **Important**: Reuse a single `ShopifySession` per shop to properly respect rate limits.
+
+### Retries
+
+Requests use a shared `requests.Session` with urllib3's `Retry` to handle
+connect/read errors and 5xx responses with exponential backoff; each
+request sends `Connection: close` to avoid flaky keep-alives. Tune retry
+counts via `SHOPIFY_GQL_RETRIES` or `RequestsTransport(retries=...)`, and
+pagination with `SHOPIFY_GQL_PAGE_RETRIES`.
 
 ### Custom Transport
 

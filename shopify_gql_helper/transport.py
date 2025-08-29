@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import os
 from typing import Any, Mapping, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -24,7 +25,38 @@ class Transport(ABC):
 
 
 class RequestsTransport(Transport):
-    """Transport using the requests library."""
+    """Transport using the requests library with retry support."""
+
+    def __init__(
+        self,
+        *,
+        retries: int | None = None,
+        backoff: float | None = None,
+    ) -> None:
+        import requests
+        from requests.adapters import HTTPAdapter
+        from urllib3.util import Retry
+
+        retry_total = retries if retries is not None else int(
+            os.getenv("SHOPIFY_GQL_RETRIES", "3")
+        )
+        backoff_factor = backoff if backoff is not None else float(
+            os.getenv("SHOPIFY_GQL_BACKOFF", "0.5")
+        )
+        retry = Retry(
+            total=retry_total,
+            connect=retry_total,
+            read=retry_total,
+            backoff_factor=backoff_factor,
+            status_forcelist=[500, 502, 503, 504],
+            allowed_methods=["POST"],
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        session = requests.Session()
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        session.headers.setdefault("Connection", "close")
+        self._session = session
 
     def post(
         self,
@@ -33,6 +65,4 @@ class RequestsTransport(Transport):
         json: Mapping[str, Any],
         timeout: float,
     ) -> "requests.Response":
-        import requests
-
-        return requests.post(url, headers=headers, json=json, timeout=timeout)
+        return self._session.post(url, headers=headers, json=json, timeout=timeout)

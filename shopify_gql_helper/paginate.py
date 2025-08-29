@@ -1,9 +1,14 @@
 """Pagination helpers."""
 from __future__ import annotations
 
+import os
+import time
 from typing import Any, Iterable, Mapping
 
+import requests
+
 from .client import execute
+from .errors import ShopifyGQLError
 from .session import ShopifySession
 
 
@@ -56,9 +61,27 @@ def cursor_pages(
     cursor: str | None = None
     first = vars_copy.get("first")
     vars_copy["first"] = first if (isinstance(first, int) and first > 0) else page_size
+    page_retries = int(
+        os.getenv("SHOPIFY_GQL_PAGE_RETRIES", os.getenv("SHOPIFY_GQL_RETRIES", "3"))
+    )
     while True:
         vars_copy["after"] = cursor
-        data = execute(session, query, vars_copy)
+        for attempt in range(page_retries + 1):
+            try:
+                data = execute(session, query, vars_copy)
+                break
+            except ShopifyGQLError as exc:
+                cause = exc.__cause__
+                if isinstance(
+                    cause,
+                    (
+                        requests.exceptions.ConnectionError,
+                        requests.exceptions.Timeout,
+                    ),
+                ) and attempt < page_retries:
+                    time.sleep(2**attempt)
+                    continue
+                raise
         conn: Any = data
         for key in connection_path:
             if not isinstance(conn, dict) or key not in conn:
