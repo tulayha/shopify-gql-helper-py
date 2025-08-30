@@ -59,12 +59,14 @@ Additional GraphQL variables can be supplied via the optional ``variables`` argu
 
 ## Throttling
 
-Shopify uses a [leaky bucket](https://shopify.dev/docs/api/usage/rate-limits) policy.
-`ShopifySession` coordinates requests per shop through a shared
-`ThrottleController`. Adjust `min_bucket` (default 50) and `min_sleep`
-(default 1.0s) to tune how aggressively you consume the bucket. **Reuse a
-single `ShopifySession` per shop** to avoid fighting the throttling
-limits.
+Shopify's [rate limit documentation](https://shopify.dev/docs/api/usage/rate-limits)
+describes the cost-based throttle used by the Admin API. `ShopifySession`
+coordinates requests per shop through a shared `ThrottleController` that
+uses a token bucket algorithm to pace requests. Adjust `min_bucket`
+(default 50) and `min_sleep` (default 1.0s) to tune how aggressively you
+consume the bucket. 
+
+**Important**: Reuse a single `ShopifySession` per store to properly respect rate limits.
 
 ## Configuration
 
@@ -89,13 +91,6 @@ session = ShopifySession(
 )
 ```
 
-### Throttling
-
-Shopify uses a [leaky bucket](https://shopify.dev/docs/api/usage/rate-limits) policy.
-`ShopifySession` coordinates requests per shop through a shared
-`ThrottleController`.
-
-**Important**: Reuse a single `ShopifySession` per shop to properly respect rate limits.
 
 ### Retries
 
