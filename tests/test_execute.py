@@ -59,6 +59,48 @@ def test_execute_retries_on_5xx(monkeypatch):
     assert data["data"]["products"]
 
 
+def test_execute_retries_on_throttled_error():
+    throttled_resp = DummyResponse(
+        200,
+        {
+            "errors": [{"message": "Throttled", "extensions": {"code": "THROTTLED"}}],
+            "extensions": {
+                "cost": {
+                    "requestedQueryCost": 167,
+                    "throttleStatus": {
+                        "maximumAvailable": 2000,
+                        "currentlyAvailable": 150,
+                        "restoreRate": 10000,
+                    },
+                }
+            },
+        },
+    )
+    success_resp = DummyResponse(
+        200,
+        {
+            "data": {"ok": True},
+            "extensions": {
+                "cost": {
+                    "actualQueryCost": 50,
+                    "throttleStatus": {
+                        "maximumAvailable": 2000,
+                        "currentlyAvailable": 900,
+                        "restoreRate": 10000,
+                    },
+                }
+            },
+        },
+    )
+    transport = ListTransport([throttled_resp, success_resp])
+    session = make_session(transport)
+    session.min_sleep = 0
+    data = execute(session, "query")
+    assert len(transport.calls) == 2
+    assert data["data"]["ok"] is True
+    assert session.throttle.total_calls == 2
+
+
 def test_execute_raises_on_non_200():
     transport = ListTransport([DummyResponse(404, {}, text="missing")])
     session = make_session(transport)
