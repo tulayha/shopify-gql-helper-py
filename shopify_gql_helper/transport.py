@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import os
+import threading
 from typing import Any, Mapping, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -46,8 +47,6 @@ class RequestsTransport(Transport):
         jitter: float | None = None,
         force_close: bool = True,
     ) -> None:
-        import requests
-        from requests.adapters import HTTPAdapter
         from urllib3.util import Retry
 
         retry_total = retries if retries is not None else int(
@@ -59,7 +58,7 @@ class RequestsTransport(Transport):
         backoff_jitter = jitter if jitter is not None else float(
             os.getenv("SHOPIFY_GQL_JITTER", "0.1")
         )
-        retry = Retry(
+        self._retry = Retry(
             total=retry_total,
             connect=retry_total,
             read=retry_total,
@@ -70,13 +69,24 @@ class RequestsTransport(Transport):
             raise_on_status=False,
             respect_retry_after_header=True,
         )
-        adapter = HTTPAdapter(max_retries=retry)
-        session = requests.Session()
-        session.mount("https://", adapter)
-        session.mount("http://", adapter)
-        if force_close:
-            session.headers.setdefault("Connection", "close")
-        self._session = session
+        self._force_close = force_close
+        self._local = threading.local()
+
+    def _get_session(self) -> "requests.Session":
+        """Return a thread-local ``requests.Session`` instance."""
+        import requests
+        from requests.adapters import HTTPAdapter
+
+        session = getattr(self._local, "session", None)
+        if session is None:
+            session = requests.Session()
+            adapter = HTTPAdapter(max_retries=self._retry)
+            session.mount("https://", adapter)
+            session.mount("http://", adapter)
+            if self._force_close:
+                session.headers.setdefault("Connection", "close")
+            self._local.session = session
+        return session
 
     def post(
         self,
@@ -85,4 +95,5 @@ class RequestsTransport(Transport):
         json: Mapping[str, Any],
         timeout: float,
     ) -> "requests.Response":
-        return self._session.post(url, headers=headers, json=json, timeout=timeout)
+        session = self._get_session()
+        return session.post(url, headers=headers, json=json, timeout=timeout)

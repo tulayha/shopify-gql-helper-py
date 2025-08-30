@@ -99,7 +99,7 @@ Shopify uses a [leaky bucket](https://shopify.dev/docs/api/usage/rate-limits) po
 
 ### Retries
 
-Requests use a shared `requests.Session` with urllib3's `Retry` to handle
+Requests use a thread-local `requests.Session` with urllib3's `Retry` to handle
 connect/read errors and 429/5xx responses with exponential backoff. Retry
 counts can be tuned via `SHOPIFY_GQL_RETRIES` or
 `RequestsTransport(retries=...)`. A small amount of random jitter is added to
