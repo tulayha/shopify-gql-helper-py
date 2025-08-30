@@ -1,6 +1,5 @@
 """Per-shop throttle controller."""
 from __future__ import annotations
-
 import threading
 import time
 from dataclasses import dataclass, field
@@ -10,26 +9,48 @@ from typing import Any
 @dataclass
 class ThrottleController:
     """Thread-safe controller for Shopify API rate limiting and throttling.
-    
-    This class implements the leaky bucket algorithm to respect Shopify's rate limits.
+
+    This class implements the token bucket algorithm to respect Shopify's rate limits.
     It's thread-safe and can be shared across multiple threads making API requests.
     
     Attributes:
         available: Current number of available request points in the bucket
-        restore_rate: Number of points restored per second (leak rate)
+        restore_rate: Number of points restored per second (refill rate, must be > 0)
         max_available: Maximum number of points the bucket can hold
         last_update: Timestamp of the last bucket update
     """
 
+    available: float = 1000.0
+    restore_rate: float = 100.0     # points per second
+    max_available: float = 2000.0
+
+    last_update: float = field(default_factory=time.monotonic)
+
+    # Sticky high-water guard
+    high_cost: float = 0.0
+
+    # Stats
+    total_calls: int = field(init=False, default=0)
+    total_cost: int = field(init=False, default=0)
+
+    # Sync
     lock: threading.Lock = field(default_factory=threading.Lock)
     cond: threading.Condition = field(init=False)
-    available: int = 1000
-    restore_rate: int = 50
-    max_available: int = 1000
-    last_update: float = field(default_factory=time.monotonic)
 
     def __post_init__(self) -> None:
         self.cond = threading.Condition(self.lock)
+
+    def __setattr__(self, name: str, value: Any) -> None:  # type: ignore[override]
+        if name == "restore_rate" and float(value) <= 0:
+            raise ValueError("restore_rate must be positive")
+        super().__setattr__(name, value)
+
+    def _refill(self) -> None:
+        now = time.monotonic()
+        elapsed = now - self.last_update
+        if elapsed > 0:
+            self.available = min(self.max_available, self.available + elapsed * self.restore_rate)
+            self.last_update = now
 
     def before_request(self, min_bucket: int, min_sleep: float) -> None:
         """Check if we can make a request, or sleep until we can.
@@ -46,32 +67,27 @@ class ThrottleController:
             This method is thread-safe and will block the calling thread if the rate
             limit would be exceeded.
         """
-        with self.cond:
-            now = time.monotonic()
-            elapsed = now - self.last_update
-            new_available = min(
-                self.max_available, self.available + elapsed * self.restore_rate
-            )
-            self.available = int(new_available)
-            self.last_update = now
-            if self.available < min_bucket:
-                if self.restore_rate <= 0:
-                    sleep_time = min_sleep
-                else:
-                    sleep_time = max(
-                        min_sleep,
-                        (min_bucket - self.available) / self.restore_rate,
-                    )
-                self.cond.wait(timeout=sleep_time)
-                now = time.monotonic()
-                elapsed = now - self.last_update
-                new_available = min(
-                    self.max_available, self.available + elapsed * self.restore_rate
-                )
-                self.available = int(new_available)
-                self.last_update = now
+        if min_sleep < 0:
+            min_sleep = 1.0
 
-    def after_response(self, throttle_status: dict[str, Any] | None) -> None:
+        with self.cond:
+            while True:
+                self._refill()
+                if self.high_cost > 0.0 and self.available >= min(self.high_cost, self.max_available):
+                    self.high_cost = 0.0
+                target = float(max(min_bucket, self.high_cost))
+                target = min(target, self.max_available)
+
+                if self.available >= target:
+                    self.available = max(0.0, self.available - float(min_bucket))
+                    return
+
+                sleep_time = max(min_sleep, (target - self.available) / self.restore_rate)
+
+                # Wait releases the lock and reacquires it after timeout/notify
+                self.cond.wait(timeout=sleep_time)
+
+    def after_response(self, throttle_status: dict[str, Any] | None, cost: int | None = None) -> None:
         """Update rate limiting information after a request completes.
         
         This should be called after receiving a response from the Shopify API to
@@ -85,17 +101,29 @@ class ThrottleController:
             This method is thread-safe and will notify any waiting threads when the
             rate limit status changes.
         """
-        if not throttle_status:
-            return
         with self.cond:
-            self.available = int(
-                throttle_status.get("currentlyAvailable", self.available)
-            )
-            self.restore_rate = int(
-                throttle_status.get("restoreRate", self.restore_rate)
-            )
-            self.max_available = int(
-                throttle_status.get("maximumAvailable", self.max_available)
-            )
-            self.last_update = time.monotonic()
+            if throttle_status:
+                # Trust server authoritative numbers
+                ca = throttle_status.get("currentlyAvailable")
+                rr = throttle_status.get("restoreRate")
+                ma = throttle_status.get("maximumAvailable")
+
+                if ca is not None:
+                    self.available = float(ca)
+                if rr is not None:
+                    rr_val = float(rr)
+                    if rr_val > 0:
+                        self.restore_rate = rr_val
+                if ma is not None:
+                    self.max_available = float(ma)
+
+                self.last_update = time.monotonic()
+
+            if cost is not None:
+                self.total_calls += 1
+                self.total_cost += int(cost)
+                c = float(cost)
+                if c > self.high_cost:
+                    self.high_cost = c
+
             self.cond.notify_all()

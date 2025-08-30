@@ -16,7 +16,10 @@ def execute(
     retries: int = 2,
 ) -> dict[str, Any]:
     """Execute a GraphQL query against the Shopify Admin API.
-    
+
+    Automatically retries on temporary failures, including Shopify's "Throttled"
+    errors that return HTTP 200 responses.
+
     Args:
         session: An authenticated ShopifySession instance
         query: The GraphQL query string to execute
@@ -65,15 +68,24 @@ def execute(
         except Exception as exc:  # pragma: no cover - malformed JSON
             snippet = getattr(resp, "text", "")[:300]
             raise ShopifyGQLError(snippet, status) from exc
+
+        cost_info = data.get("extensions", {}).get("cost", {})
+        throttle_status = cost_info.get("throttleStatus")
+        cost = cost_info.get("actualQueryCost") or cost_info.get("requestedQueryCost")
+        session.throttle.after_response(throttle_status, cost)
+
         if "errors" in data:
-            snippet = str(data["errors"])[:300]
+            errors = data["errors"]
+            throttled = any(
+                err.get("extensions", {}).get("code") == "THROTTLED"
+                or err.get("message") == "Throttled"
+                for err in errors
+            )
+            if throttled and attempt < retries:
+                continue
+            snippet = str(errors)[:300]
             raise ShopifyGQLError(snippet)
-        throttle_status = (
-            data.get("extensions", {})
-            .get("cost", {})
-            .get("throttleStatus")
-        )
-        session.throttle.after_response(throttle_status)
+
         return data
     # If loop exits without return, raise generic error
     raise ShopifyGQLError("Max retries exceeded")

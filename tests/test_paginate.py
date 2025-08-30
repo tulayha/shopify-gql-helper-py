@@ -1,7 +1,7 @@
 import json
-from dataclasses import dataclass
 import pathlib
 import sys
+from dataclasses import dataclass
 
 import pytest
 
@@ -29,7 +29,10 @@ class ListTransport(Transport):
 
     def post(self, url, headers, json, timeout):
         self.calls.append({"query": json["query"], "variables": dict(json["variables"])})
-        return self.responses.pop(0)
+        resp = self.responses.pop(0)
+        if isinstance(resp, Exception):
+            raise resp
+        return resp
 
 
 def test_cursor_pages_streams_all_items():

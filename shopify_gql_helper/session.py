@@ -29,7 +29,7 @@ class ShopifySession:
     api_version: str = "2025-01"
     throttle: ThrottleController = field(default_factory=ThrottleController)
     transport: Transport = field(default_factory=RequestsTransport)
-    min_bucket: int = 50
+    min_bucket: int = 100
     min_sleep: float = 1.0
     graphql_url: str = field(init=False)
 
