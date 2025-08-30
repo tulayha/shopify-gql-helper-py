@@ -67,9 +67,6 @@ class ThrottleController:
         if min_sleep < 0:
             min_sleep = 1.0
 
-        if self.restore_rate <= 0:
-            raise ValueError("restore_rate must be positive")
-
         with self.cond:
             while True:
                 self._refill()
@@ -110,7 +107,9 @@ class ThrottleController:
                 if ca is not None:
                     self.available = float(ca)
                 if rr is not None:
-                    self.restore_rate = float(rr)
+                    rr_val = float(rr)
+                    if rr_val > 0:
+                        self.restore_rate = rr_val
                 if ma is not None:
                     self.max_available = float(ma)
 

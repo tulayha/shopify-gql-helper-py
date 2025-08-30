@@ -45,3 +45,12 @@ def test_after_response_notifies():
 def test_restore_rate_must_be_positive():
     with pytest.raises(ValueError):
         ThrottleController(restore_rate=0)
+
+
+def test_after_response_ignores_non_positive_restore_rate():
+    t = ThrottleController()
+    original = t.restore_rate
+    t.after_response({"restoreRate": 0})
+    assert t.restore_rate == original
+    t.after_response({"restoreRate": -5})
+    assert t.restore_rate == original
