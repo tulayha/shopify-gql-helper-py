@@ -53,9 +53,10 @@ def cursor_pages(
 
 
     vars_copy: dict[str, Any] = dict(variables or {})
-    cursor: str | None = None
     first = vars_copy.get("first")
     vars_copy["first"] = first if (isinstance(first, int) and first > 0) else page_size
+    after = vars_copy.get("after")
+    cursor = after if (isinstance(after, str) and len(after) > 0) else None
     while True:
         vars_copy["after"] = cursor
         data = execute(session, query, vars_copy)
