@@ -9,13 +9,13 @@ from typing import Any
 @dataclass
 class ThrottleController:
     """Thread-safe controller for Shopify API rate limiting and throttling.
-    
-    This class implements the leaky bucket algorithm to respect Shopify's rate limits.
+
+    This class implements the token bucket algorithm to respect Shopify's rate limits.
     It's thread-safe and can be shared across multiple threads making API requests.
     
     Attributes:
         available: Current number of available request points in the bucket
-        restore_rate: Number of points restored per second (leak rate, must be > 0)
+        restore_rate: Number of points restored per second (refill rate, must be > 0)
         max_available: Maximum number of points the bucket can hold
         last_update: Timestamp of the last bucket update
     """
@@ -25,6 +25,9 @@ class ThrottleController:
     max_available: float = 2000.0
 
     last_update: float = field(default_factory=time.monotonic)
+
+    # Sticky high-water guard
+    high_cost: float = 0.0
 
     # Stats
     total_calls: int = field(init=False, default=0)
@@ -46,7 +49,7 @@ class ThrottleController:
         now = time.monotonic()
         elapsed = now - self.last_update
         if elapsed > 0:
-            self.available = min(self.max_available, self.available + elapsed * max(self.restore_rate, 0.0))
+            self.available = min(self.max_available, self.available + elapsed * self.restore_rate)
             self.last_update = now
 
     def before_request(self, min_bucket: int, min_sleep: float) -> None:
@@ -70,12 +73,13 @@ class ThrottleController:
         with self.cond:
             while True:
                 self._refill()
-
-                avg_cost = (self.total_cost / self.total_calls) if self.total_calls else 0
-                # Decide how much we *really* need
-                target = max(min_bucket, avg_cost if avg_cost > min_bucket else 0)
+                if self.high_cost > 0.0 and self.available >= min(self.high_cost, self.max_available):
+                    self.high_cost = 0.0
+                target = float(max(min_bucket, self.high_cost))
+                target = min(target, self.max_available)
 
                 if self.available >= target:
+                    self.available = max(0.0, self.available - float(min_bucket))
                     return
 
                 sleep_time = max(min_sleep, (target - self.available) / self.restore_rate)
@@ -118,5 +122,8 @@ class ThrottleController:
             if cost is not None:
                 self.total_calls += 1
                 self.total_cost += int(cost)
+                c = float(cost)
+                if c > self.high_cost:
+                    self.high_cost = c
 
             self.cond.notify_all()
